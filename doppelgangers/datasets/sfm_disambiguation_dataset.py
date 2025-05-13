@@ -12,6 +12,8 @@ class DoppelgangersDataset(Dataset):
                  loftr_match_dir,
                  pair_path,
                  img_size,
+                 feature_path=None,
+                 match_path=None,
                  **kwargs):
         """
         Doppelgangers test dataset: loading images and loftr matches for Doppelgangers model.
@@ -27,6 +29,8 @@ class DoppelgangersDataset(Dataset):
         self.image_dir = image_dir    
         self.loftr_match_dir = loftr_match_dir    
         self.pairs_info = np.load(pair_path)
+        self.feature_path = feature_path
+        self.match_path = match_path
 
         print('loading images')
         self.img_size = img_size
@@ -38,10 +42,20 @@ class DoppelgangersDataset(Dataset):
     def __getitem__(self, idx):
         name0, name1, label, num_matches, pair_id = self.pairs_info[idx]
 
-        pair_matches = np.load(osp.join(self.loftr_match_dir, '%d.npy'%idx), allow_pickle=True).item()
-        keypoints0 = np.array(pair_matches['kpt0'])
-        keypoints1 = np.array(pair_matches['kpt1'])
-        conf = pair_matches['conf']
+        from hloc.utils.io import get_keypoints, get_matches
+
+        kpts0 = get_keypoints(self.feature_path, name0)
+        kpts1 = get_keypoints(self.feature_path, name1)
+        matches, scores = get_matches(self.match_path, name0, name1)
+        keypoints0 = np.array(kpts0[matches[:, 0]])
+        keypoints1 = np.array(kpts1[matches[:, 1]])
+        conf = np.array(scores)
+            
+        """except:
+            pair_matches = np.load(osp.join(self.loftr_match_dir, '%d.npy'%idx), allow_pickle=True).item()
+            keypoints0 = np.array(pair_matches['kpt0'])
+            keypoints1 = np.array(pair_matches['kpt1'])
+            conf = pair_matches['conf']"""
 
         if np.sum(conf>0.8) == 0:
             matches = None
@@ -69,7 +83,10 @@ def get_datasets(cfg):
                     cfg.image_dir,
                     cfg.loftr_match_dir,
                     cfg.test.pair_path,
-                    img_size=getattr(cfg.test, "img_size", 640))
+                    img_size=getattr(cfg.test, "img_size", 640),
+                    feature_path=cfg.feature_path,
+                    match_path=cfg.match_path,
+                    )
 
     return te_dataset
 
