@@ -46,7 +46,15 @@ class DoppelgangersDataset(Dataset):
 
         kpts0 = get_keypoints(self.feature_path, name0)
         kpts1 = get_keypoints(self.feature_path, name1)
-        matches, scores = get_matches(self.match_path, name0, name1)
+        
+        if isinstance(self.match_path, list):
+            try:
+                matches, scores = get_matches(self.match_path[0], name0, name1)
+            except:
+                matches, scores = get_matches(self.match_path[1], name0, name1)
+        else:
+            matches, scores = get_matches(self.match_path, name0, name1)
+        
         keypoints0 = np.array(kpts0[matches[:, 0]])
         keypoints1 = np.array(kpts1[matches[:, 1]])
         conf = np.array(scores)
